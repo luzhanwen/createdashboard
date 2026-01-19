@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 紫色深色主题 */
+    --background: 260 25% 8%;
+    --foreground: 260 20% 95%;
+    --card: 260 20% 12%;
+    --card-foreground: 260 20% 95%;
+    --popover: 260 20% 10%;
+    --popover-foreground: 260 20% 95%;
+    --primary: 260 80% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 260 20% 18%;
+    --secondary-foreground: 260 20% 95%;
+    --muted: 260 15% 20%;
+    --muted-foreground: 260 10% 60%;
+    --accent: 270 70% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 260 15% 20%;
+    --input: 260 15% 18%;
+    --ring: 260 80% 65%;
+    --radius: 0.625rem;
+    --sidebar-background: 260 20% 10%;
+    --sidebar-foreground: 260 20% 90%;
+    --sidebar-primary: 260 80% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 260 20% 18%;
+    --sidebar-accent-foreground: 260 20% 95%;
+    --sidebar-border: 260 15% 20%;
+    --sidebar-ring: 260 80% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* 自定义滚动条 - 紫色主题 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(260 20% 12%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(260 30% 35%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(260 40% 45%);
+}
+
+/* 渐变文字效果 */
+.gradient-text {
+  background: linear-gradient(135deg, hsl(260 80% 65%), hsl(270 70% 55%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 发光效果 */
+.glow {
+  box-shadow: 0 0 20px hsl(260 80% 65% / 0.3);
+}
+
+.glow-sm {
+  box-shadow: 0 0 10px hsl(260 80% 65% / 0.2);
+}
+
+/* 紫色渐变背景 */
+.gradient-bg {
+  background: linear-gradient(135deg, hsl(260 40% 15%), hsl(270 35% 12%));
+}
+
+/* 卡片悬停效果 */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -10px hsl(260 80% 65% / 0.3);
+}
+
+/* 步骤指示器样式 */
+.step-indicator {
+  position: relative;
+}
+
+.step-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -20px;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, hsl(260 80% 65%), transparent);
+  transform: translateY(-50%);
+}
+
+.step-indicator:last-child::after {
+  display: none;
+}
+
+/* 输入框聚焦效果 */
+input:focus, textarea:focus {
+  box-shadow: 0 0 0 2px hsl(260 80% 65% / 0.3);
+}
+
+/* 按钮发光效果 */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, hsl(260 80% 65% / 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.btn-glow:hover::before {
+  left: 100%;
+}
