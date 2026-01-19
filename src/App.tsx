@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import ReactECharts from 'echarts-for-react';
 import Papa from 'papaparse';
 import './App.css';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // 类型定义
 interface DataColumn {
@@ -61,7 +62,7 @@ const chartTypes = [
   { id: 'table', name: '数据表', icon: Table2, color: 'from-green-500 to-emerald-500' },
 ];
 
-// 模拟AI建议
+// 调用谷歌生成AI建议
 const generateAIRecommendations = (dataset: Dataset | null): ChartWidget[] => {
   if (!dataset) return [];
   
@@ -110,6 +111,74 @@ const generateAIRecommendations = (dataset: Dataset | null): ChartWidget[] => {
   }
   
   return recommendations;
+};
+
+// 初始化 Gemini (从环境变量读取 Key)
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+
+const callGeminiAI = async (dataset: Dataset, userPrompt: string): Promise<ChartWidget[]> => {
+  // 1. 准备数据上下文：提取列名和少量样本数据，避免 Token 超限
+  const dataContext = {
+    columns: dataset.columns.map(c => ({ name: c.name, type: c.type })),
+    sampleData: dataset.rawData.slice(0, 3) // 仅提供前3行作为样本
+  };
+
+  // 2. 构建 Prompt
+  const prompt = `
+    你是一个数据分析专家。请根据以下数据集信息和用户需求，推荐适合的图表。
+    
+    数据集信息:
+    ${JSON.stringify(dataContext, null, 2)}
+    
+    用户需求: "${userPrompt}"
+    
+    请严格遵循以下 JSON 格式返回结果（不要包含 Markdown 代码块标记，仅返回纯 JSON 数组）：
+    [
+      {
+        "type": "bar" | "line" | "pie" | "table",
+        "title": "图表标题",
+        "description": "图表用途描述",
+        "xColumn": "作为X轴或分类的列名",
+        "yColumn": "作为Y轴或数值的列名"
+      }
+    ]
+    
+    规则：
+    1. 如果是 "pie" (环形图)，xColumn 对应分类，yColumn 对应数值。
+    2. 如果是 "bar" (条形图) 或 "line" (折线图)，xColumn 对应 X 轴，yColumn 对应 Y 轴。
+    3. 仅使用数据集中存在的列名。
+  `;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    let text = response.text();
+    
+    // 清理可能存在的 Markdown 标记 (```json ... ```)
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    const aiSuggestions = JSON.parse(text);
+
+    // 将 AI 返回的简化格式转换为应用所需的 ChartWidget 格式
+    return aiSuggestions.map((s: any) => ({
+      id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: s.type,
+      title: s.title,
+      description: s.description,
+      dataConfig: {
+        datasetId: dataset.id,
+        // 根据图表类型映射字段
+        xColumn: (s.type === 'bar' || s.type === 'line') ? s.xColumn : undefined,
+        yColumn: (s.type === 'bar' || s.type === 'line') ? s.yColumn : undefined,
+        categoryColumn: s.type === 'pie' ? s.xColumn : undefined,
+        valueColumn: s.type === 'pie' ? s.yColumn : undefined,
+      }
+    }));
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    throw new Error("AI 分析失败，请检查 API Key 或网络连接");
+  }
 };
 
 // 图表组件
@@ -306,27 +375,41 @@ function App() {
   }, []);
   
   // 处理AI对话框提交
-  const handleAiSubmit = useCallback(() => {
-    if (!aiPrompt.trim()) {
-      toast.error('请输入您的需求');
-      return;
-    }
-    
-    if (!selectedDataset) {
-      toast.error('请先上传数据');
-      return;
-    }
-    
-    setAiResponse('正在分析您的需求并生成图表建议...');
-    
-    setTimeout(() => {
-      const newRecommendations = generateAIRecommendations(selectedDataset);
-      setRecommendations(newRecommendations);
-      setAiResponse(`已为您生成 ${newRecommendations.length} 个图表建议。`);
-      completeStep(1);
-      toast.success('AI分析完成！');
-    }, 1500);
-  }, [aiPrompt, selectedDataset]);
+  const handleAiSubmit = async () => {
+      if (!aiPrompt.trim()) {
+        toast.error('请输入您的需求');
+        return;
+      }
+      
+      if (!selectedDataset) {
+        toast.error('请先上传数据');
+        return;
+      }
+
+      if (!import.meta.env.VITE_GEMINI_API_KEY) {
+        toast.error('未配置 Gemini API Key，请检查 .env 文件');
+        return;
+      }
+      
+      setAiResponse('正在连接 Gemini AI 进行深度分析...');
+      
+      try {
+        // 调用真正的 AI
+        const newRecommendations = await callGeminiAI(selectedDataset, aiPrompt);
+        
+        if (newRecommendations.length === 0) {
+          setAiResponse('AI 未能生成有效的图表建议，请尝试更详细的描述。');
+        } else {
+          setRecommendations(newRecommendations);
+          setAiResponse(`Gemini AI 已为您生成 ${newRecommendations.length} 个图表建议。`);
+          completeStep(1);
+          toast.success('AI 分析完成！');
+        }
+      } catch (error: any) {
+        setAiResponse(`错误: ${error.message}`);
+        toast.error('AI分析出错');
+      }
+    };
   
   // 添加图表到看板
   const addWidgetToDashboard = useCallback((widget: ChartWidget) => {
